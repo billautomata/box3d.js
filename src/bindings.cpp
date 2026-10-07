@@ -47,6 +47,13 @@
 #include <box3d/box3d.h>
 #include <box3d/collision.h>
 
+// World snapshots (src/snapshot.c).
+extern "C" {
+int b3World_GetSnapshot( b3WorldId worldId, uint8_t* image, int capacity );
+bool b3World_Restore( b3WorldId worldId, const uint8_t* image, int size );
+void b3World_ReleaseSnapshot( b3WorldId worldId );
+}
+
 using namespace emscripten;
 
 // A captureless lambda decays to a function pointer via unary +, which is what
@@ -795,7 +802,32 @@ EMSCRIPTEN_BINDINGS( box3d )
 	function( "b3DefaultSurfaceMaterial()", &b3DefaultSurfaceMaterial );
 
 	function( "b3CreateWorld(worldDef)", +[]( b3WorldDef def ) { return b3CreateWorld( &def ); } );
-	function( "b3DestroyWorld(worldId)", &b3DestroyWorld );
+	// A world a snapshot was restored into keeps the image's mesh, height field and compound bytes
+	// (src/snapshot.c); they go with it.
+	function( "b3DestroyWorld(worldId)", +[]( b3WorldId worldId )
+	{
+		b3DestroyWorld( worldId );
+		b3World_ReleaseSnapshot( worldId );
+	} );
+
+	// ---- snapshot ----
+	// The whole world as one image (bodies, shapes and their geometry, contacts with their warm
+	// starting impulses, joints, sensors, islands, sleep, the broad phase), and that image put back
+	// into a world, which then steps on exactly as the one it was taken from. An empty array when the
+	// world is mid step.
+	ret_function( "b3World_GetSnapshot(worldId): Uint8Array", +[]( b3WorldId worldId ) -> val
+	{
+		int size = b3World_GetSnapshot( worldId, nullptr, 0 );
+		std::vector<uint8_t> image( size > 0 ? (size_t)size : 0 );
+		int written = image.empty() ? 0 : b3World_GetSnapshot( worldId, image.data(), (int)image.size() );
+		if ( written == 0 ) return val::global( "Uint8Array" ).new_( 0 );
+		return val( typed_memory_view( (size_t)written, image.data() ) ).call<val>( "slice" );
+	} );
+	function( "b3World_Restore(worldId, image)", +[]( b3WorldId worldId, val image )
+	{
+		std::vector<uint8_t> bytes = convertJSArrayToNumberVector<uint8_t>( image );
+		return b3World_Restore( worldId, bytes.data(), (int)bytes.size() );
+	} );
 	function( "b3World_IsValid(worldId)", &b3World_IsValid );
 	function( "b3World_Step(worldId, timeStep, subStepCount)", &b3World_Step );
 	function( "b3World_SetGravity(worldId, gravity)", &b3World_SetGravity );

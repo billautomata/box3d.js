@@ -991,6 +991,8 @@ interface EmbindModule {
   b3DynamicTree_GetAreaRatio(tree: b3DynamicTree | null): number;
   b3Body_SetName(bodyId: b3BodyId, name: EmbindString): void;
   b3Body_GetName(bodyId: b3BodyId): string;
+  b3World_GetSnapshot(worldId: b3WorldId): Uint8Array;
+  b3World_Restore(worldId: b3WorldId, image: any): boolean;
   b3CreateHull(points: any): b3HullData | null;
   b3GetHullVertices(hull: b3HullData | null): Float32Array;
   b3CreateMesh(positions: any, indices: any): b3MeshData | null;

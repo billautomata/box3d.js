@@ -27,7 +27,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "build:debug": "node scripts/build.mjs --debug",
-    "test": "node test/smoke.mjs",
+    "test": "node test/smoke.mjs && node test/snapshot.mjs",
     "docs:build": "node docs/build.js",
     "docs:check": "pnpm --filter @box3d/examples exec tsc --noEmit -p ../docs/tsconfig.json",
     "lint": "biome lint examples/src",
@@ -45,10 +45,10 @@
     "emscripten",
     "embind"
   ],
-  "repository": "github:isaac-mason/box3d.js",
-  "homepage": "https://github.com/isaac-mason/box3d.js",
+  "repository": "github:billautomata/box3d.js",
+  "homepage": "https://github.com/billautomata/box3d.js",
   "bugs": {
-    "url": "https://github.com/isaac-mason/box3d.js/issues"
+    "url": "https://github.com/billautomata/box3d.js/issues"
   },
   "author": "Isaac Mason",
   "license": "MIT",

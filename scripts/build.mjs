@@ -33,7 +33,7 @@ const MAXIMUM_MEMORY = 2147483648; // 2 GiB — required with growth + shared me
 // pattern-matches emscripten's generated output, so an unexpected emcc version
 // can silently change that output and break the rewrites. Assert it up front.
 // Bump this (and re-verify the build) intentionally when upgrading emsdk.
-const REQUIRED_EMSDK = '6.0.2';
+const REQUIRED_EMSDK = '6.0.10';
 
 function run( cmd, args )
 {
@@ -163,7 +163,12 @@ function buildBox3dLib( buildDir, cflags )
 	run( 'cmake', [ '--build', buildDir, '--target', 'box3d', '-j', '8' ] );
 	const lib = findFile( join( root, buildDir ), 'libbox3d.a' );
 	if ( !lib ) throw new Error( `libbox3d.a not found under ${buildDir}` );
-	return lib;
+	// src/snapshot.c, the world snapshot calls, compiled against box3d's own sources with the flags
+	// box3d's library is built with under Emscripten, so it sees the same struct layouts.
+	const snapshot = join( buildDir, 'snapshot.o' );
+	run( 'emcc', [ '-c', 'src/snapshot.c', '-I', 'vendor/box3d/include', '-I', 'vendor/box3d/src', '-std=c17', '-msimd128', '-msse2',
+		...( debug ? [ '-O0', '-g' ] : [ '-O3', '-DNDEBUG' ] ), ...( cflags ? cflags.split( ' ' ) : [] ), '-o', snapshot ] );
+	return [ snapshot, lib ];
 }
 
 assertEmscriptenVersion();
@@ -211,7 +216,7 @@ const mtFlags = [
 // Separate-wasm build WITHOUT the facade post-js, used only to (a) emit the shared
 // TypeScript defs and (b) be loaded here to read the binding-site metadata. It is
 // overwritten below by the real, facade-carrying dist/box3d.mjs.
-run( 'em++', [ 'src/bindings.cpp', stLib, ...commonFlags, '--emit-tsd', 'box3d.d.ts', '-o', 'dist/box3d.mjs' ] );
+run( 'em++', [ 'src/bindings.cpp', ...stLib, ...commonFlags, '--emit-tsd', 'box3d.d.ts', '-o', 'dist/box3d.mjs' ] );
 validateESModule( 'dist/box3d.mjs' );
 
 // Read the binding-site metadata straight off the probe: _layoutMeta() (packed-buffer
@@ -411,18 +416,18 @@ const post = [ '--post-js', facadePost ];
 
 // --- single-threaded ---
 // Real separate-wasm build (with the facade), overwriting the probe above.
-run( 'em++', [ 'src/bindings.cpp', stLib, ...commonFlags, ...post, '-o', 'dist/box3d.mjs' ] );
+run( 'em++', [ 'src/bindings.cpp', ...stLib, ...commonFlags, ...post, '-o', 'dist/box3d.mjs' ] );
 validateESModule( 'dist/box3d.mjs' );
 // Inlined single-file build (wasm base64-embedded).
-run( 'em++', [ 'src/bindings.cpp', stLib, ...commonFlags, ...post, '-sSINGLE_FILE=1', '-o', 'dist/box3d.inline.mjs' ] );
+run( 'em++', [ 'src/bindings.cpp', ...stLib, ...commonFlags, ...post, '-sSINGLE_FILE=1', '-o', 'dist/box3d.inline.mjs' ] );
 validateESModule( 'dist/box3d.inline.mjs' );
 
 // --- multithreaded (pthreads) ---
-run( 'em++', [ 'src/bindings.cpp', mtLib, ...commonFlags, ...mtFlags, ...post, '-o', 'dist/box3d.mt.mjs' ] );
+run( 'em++', [ 'src/bindings.cpp', ...mtLib, ...commonFlags, ...mtFlags, ...post, '-o', 'dist/box3d.mt.mjs' ] );
 validateESModule( 'dist/box3d.mt.mjs' );
 // Single-file MT build: base64-embedding the wasm sidesteps the SharedArrayBuffer
 // + separate-wasm-fetch friction (as JoltPhysics.js does).
-run( 'em++', [ 'src/bindings.cpp', mtLib, ...commonFlags, ...mtFlags, ...post, '-sSINGLE_FILE=1', '-o', 'dist/box3d.mt.inline.mjs' ] );
+run( 'em++', [ 'src/bindings.cpp', ...mtLib, ...commonFlags, ...mtFlags, ...post, '-sSINGLE_FILE=1', '-o', 'dist/box3d.mt.inline.mjs' ] );
 validateESModule( 'dist/box3d.mt.inline.mjs' );
 
 console.log( '\nBuild artifacts:' );
