@@ -823,9 +823,12 @@ EMSCRIPTEN_BINDINGS( box3d )
 		if ( written == 0 ) return val::global( "Uint8Array" ).new_( 0 );
 		return val( typed_memory_view( (size_t)written, image.data() ) ).call<val>( "slice" );
 	} );
+	// The image copied into wasm memory in one block, by the typed array's own `set`, rather than read
+	// one element at a time.
 	function( "b3World_Restore(worldId, image)", +[]( b3WorldId worldId, val image )
 	{
-		std::vector<uint8_t> bytes = convertJSArrayToNumberVector<uint8_t>( image );
+		std::vector<uint8_t> bytes( image[ "length" ].as<size_t>() );
+		val( typed_memory_view( bytes.size(), bytes.data() ) ).call<void>( "set", image );
 		return b3World_Restore( worldId, bytes.data(), (int)bytes.size() );
 	} );
 	function( "b3World_IsValid(worldId)", &b3World_IsValid );
