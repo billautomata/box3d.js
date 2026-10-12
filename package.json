@@ -45,10 +45,10 @@
     "emscripten",
     "embind"
   ],
-  "repository": "github:billautomata/box3d.js",
-  "homepage": "https://github.com/billautomata/box3d.js",
+  "repository": "github:outsidedata/box3d.js",
+  "homepage": "https://github.com/outsidedata/box3d.js",
   "bugs": {
-    "url": "https://github.com/billautomata/box3d.js/issues"
+    "url": "https://github.com/outsidedata/box3d.js/issues"
   },
   "author": "Isaac Mason",
   "license": "MIT",
